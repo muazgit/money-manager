@@ -158,15 +158,23 @@ object AppUpdateManager {
                     setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                     setDestinationInExternalPublicDir(
                         Environment.DIRECTORY_DOWNLOADS,
-                        "taka-manager-update.apk"
+                        "taka-manager-v${System.currentTimeMillis()}.apk"
                     )
                     setAllowedOverMetered(true)
                     setAllowedOverRoaming(true)
                 }
 
                 val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
-                dm?.enqueue(request)
-                Toast.makeText(context, "Downloading update in background...", Toast.LENGTH_LONG).show()
+                if (dm != null) {
+                    dm.enqueue(request)
+                    Toast.makeText(context, "ডাউনলোড শুরু হয়েছে (Notification চেক করুন)...", Toast.LENGTH_LONG).show()
+                } else {
+                    // Fallback to browser if DownloadManager is unavailable
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(intent)
+                }
             } else {
                 // Open in web browser
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
