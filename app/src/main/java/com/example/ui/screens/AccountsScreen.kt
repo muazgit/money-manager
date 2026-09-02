@@ -93,6 +93,7 @@ fun AccountsScreen(
     onRestoreSampleData: () -> Unit,
     onClearAllData: () -> Unit = {},
     onCheckForUpdates: () -> Unit = {},
+    onSimulateUpdate: () -> Unit = {},
     onSetCustomUpdateUrl: (String) -> Unit = {},
     onDeleteAccount: (AccountEntity) -> Unit
 ) {
@@ -701,11 +702,38 @@ fun AccountsScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = if (isBn) "আপডেট পরীক্ষা করুন" else "Check for Updates",
+                                text = if (isBn) "সার্ভার থেকে আপডেট পরীক্ষা করুন" else "Check Server for Updates",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Instant Test Update Prompt Trigger
+                    Button(
+                        onClick = onSimulateUpdate,
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("simulate_update_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SystemUpdate,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isBn) "🧪 আপডেট ডায়ালগ টেস্ট করুন (v1.2.0)" else "🧪 Test Update Popup (v1.2.0)",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -897,6 +925,55 @@ fun AccountsScreen(
                         maxLines = 3,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (isBn) "দ্রুত প্রিসেট নির্বাচন:" else "Quick Preset URLs:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    customUrlInput = "https://raw.githubusercontent.com/muazgit/money-manager/main/version.json"
+                                }
+                        ) {
+                            Text(
+                                text = "muazgit (Main)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    customUrlInput = "https://raw.githubusercontent.com/abufiras985/taka-manager/main/version.json"
+                                }
+                        ) {
+                            Text(
+                                text = "abufiras (Backup)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
                 }
             },
             confirmButton = {

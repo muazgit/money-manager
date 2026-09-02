@@ -53,6 +53,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -313,6 +314,7 @@ fun BengaliMoneyManagerApp(
                             onRestoreSampleData = { viewModel.resetAndSeedData() },
                             onClearAllData = { viewModel.clearAllData() },
                             onCheckForUpdates = { viewModel.checkForUpdates(isManual = true) },
+                            onSimulateUpdate = { viewModel.simulateUpdateForTesting() },
                             onSetCustomUpdateUrl = { viewModel.setCustomUpdateUrl(it) },
                             onDeleteAccount = { viewModel.deleteAccount(it) }
                         )
@@ -411,6 +413,13 @@ fun BengaliMoneyManagerApp(
     var dismissedUpdatePrompt by remember { mutableStateOf(false) }
     val update = uiState.updateInfo
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    LaunchedEffect(update) {
+        if (update?.hasUpdate == true) {
+            dismissedUpdatePrompt = false
+        }
+    }
+
     if (update != null && update.hasUpdate && !dismissedUpdatePrompt) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { dismissedUpdatePrompt = true },

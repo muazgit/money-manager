@@ -1,7 +1,7 @@
 {
-  "versionCode": 2,
-  "versionName": "1.1.0",
-  "releaseNotes": "✨ নতুন AI আর্থিক উপদেষ্টা (AI Financial Advisor) যুক্ত করা হয়েছে!\n• বাস্তব হিসাবের ভিত্তিতে স্মার্ট ব্যয়ের বিশ্লেষণ ও সঞ্চয় বৃদ্ধির কৌশল\n• উচ্চ ঝুঁকিপূর্ণ খরচের খাত চিহ্নিতকরণ ও দেনা পরিশোধের পরিকল্পনা\n• ইন-অ্যাপ আপডেটার ও পারফরম্যান্স উন্নয়ন",
+  "versionCode": 3,
+  "versionName": "1.2.0",
+  "releaseNotes": "🎨 নতুন ডিজাইন ও ইন্টারফেস আপডেট (v1.2.0):\n• স্টিকি টপ হেডার (Sticky Top Header)\n• আধুনিক কার্ভড টপ বটম বার (Curved Top-Radiused Bottom Bar)\n• AI আর্থিক উপদেষ্টা ও পারফরম্যান্স উন্নয়ন",
   "downloadUrl": "https://github.com/muazgit/money-manager/releases",
   "mandatory": false
 }

@@ -3,6 +3,7 @@ package com.example.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.BuildConfig
 import com.example.data.local.AppDatabase
 import com.example.data.local.PrepopulateData
 import com.example.data.model.AccountEntity
@@ -277,6 +278,29 @@ class MoneyViewModel(application: Application) : AndroidViewModel(application) {
     fun clearAllData() {
         viewModelScope.launch(Dispatchers.IO) {
             PrepopulateData.clearAllData(database)
+        }
+    }
+
+    fun simulateUpdateForTesting() {
+        val simulated = com.example.util.AppUpdateInfo(
+            hasUpdate = true,
+            latestVersionCode = 3,
+            latestVersionName = "1.2.0",
+            currentVersionCode = BuildConfig.VERSION_CODE,
+            currentVersionName = BuildConfig.VERSION_NAME,
+            releaseNotes = if (_uiState.value.language == AppLanguage.BENGALI)
+                "🎨 নতুন ডিজাইন ও ইন্টারফেস আপডেট (v1.2.0):\n• স্টিকি টপ হেডার (Sticky Header)\n• কার্ভড টপ বটম ন্যাভিগেশন বার (Curved Bottom Bar)\n• AI আর্থিক উপদেষ্টা ও পারফরম্যান্স উন্নয়ন"
+            else
+                "🎨 New UI Design & Enhancements (v1.2.0):\n• Sticky Elevated Top Header\n• Curved Top-Radiused Bottom Bar\n• AI Financial Advisor & Bug Fixes",
+            downloadUrl = "https://github.com/muazgit/money-manager/releases",
+            isMandatory = false
+        )
+        _uiState.update {
+            it.copy(
+                isCheckingUpdate = false,
+                updateInfo = simulated,
+                updateCheckMessage = if (it.language == AppLanguage.BENGALI) "টেস্ট আপডেট সক্রিয়: v1.2.0" else "Test update active: v1.2.0"
+            )
         }
     }
 

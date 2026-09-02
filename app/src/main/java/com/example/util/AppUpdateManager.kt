@@ -32,7 +32,8 @@ object AppUpdateManager {
     private const val KEY_IGNORED_VERSION = "ignored_version_code"
 
     // Default shared update metadata URL or GitHub raw configuration URL
-    const val DEFAULT_UPDATE_CONFIG_URL = "https://raw.githubusercontent.com/abufiras985/taka-manager/main/version.json"
+    const val DEFAULT_UPDATE_CONFIG_URL = "https://raw.githubusercontent.com/muazgit/money-manager/main/version.json"
+    private const val FALLBACK_UPDATE_CONFIG_URL = "https://raw.githubusercontent.com/abufiras985/taka-manager/main/version.json"
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -41,64 +42,103 @@ object AppUpdateManager {
 
     fun getUpdateUrl(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_CUSTOM_UPDATE_URL, "")?.ifEmpty { DEFAULT_UPDATE_CONFIG_URL }
-            ?: DEFAULT_UPDATE_CONFIG_URL
+        val saved = prefs.getString(KEY_CUSTOM_UPDATE_URL, "")?.trim() ?: ""
+        return if (saved.isNotEmpty()) saved else DEFAULT_UPDATE_CONFIG_URL
+    }
+
+    /**
+     * Normalizes user-input GitHub URLs to raw.githubusercontent.com format if needed.
+     * E.g. https://github.com/muazgit/money-manager/blob/main/version.json
+     *   -> https://raw.githubusercontent.com/muazgit/money-manager/main/version.json
+     * Or https://github.com/muazgit/money-manager
+     *   -> https://raw.githubusercontent.com/muazgit/money-manager/main/version.json
+     */
+    fun normalizeUrl(rawUrl: String): String {
+        var url = rawUrl.trim()
+        if (url.isEmpty()) return DEFAULT_UPDATE_CONFIG_URL
+
+        if (url.contains("github.com") && !url.contains("raw.githubusercontent.com")) {
+            url = url.replace("https://github.com/", "https://raw.githubusercontent.com/")
+                .replace("http://github.com/", "https://raw.githubusercontent.com/")
+                .replace("/blob/", "/")
+            if (!url.endsWith(".json")) {
+                url = url.trimEnd('/') + "/main/version.json"
+            }
+        }
+        return url
     }
 
     fun setUpdateUrl(context: Context, url: String) {
+        val normalized = normalizeUrl(url)
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString(KEY_CUSTOM_UPDATE_URL, url.trim()).apply()
+        prefs.edit().putString(KEY_CUSTOM_UPDATE_URL, normalized).apply()
     }
 
     suspend fun checkForUpdate(context: Context, isManual: Boolean = false): AppUpdateInfo = withContext(Dispatchers.IO) {
-        val url = getUpdateUrl(context)
+        val primaryUrl = getUpdateUrl(context)
+        val urlsToTry = mutableListOf<String>()
+        urlsToTry.add(primaryUrl)
+        if (primaryUrl != DEFAULT_UPDATE_CONFIG_URL) {
+            urlsToTry.add(DEFAULT_UPDATE_CONFIG_URL)
+        }
+        if (primaryUrl != FALLBACK_UPDATE_CONFIG_URL && DEFAULT_UPDATE_CONFIG_URL != FALLBACK_UPDATE_CONFIG_URL) {
+            urlsToTry.add(FALLBACK_UPDATE_CONFIG_URL)
+        }
+
         val currentCode = BuildConfig.VERSION_CODE
         val currentName = BuildConfig.VERSION_NAME
 
-        try {
-            val request = Request.Builder()
-                .url(url)
-                .header("User-Agent", "TakaManager-App/${currentName}")
-                .build()
+        var lastErrorMessage: String? = null
 
-            httpClient.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    val bodyString = response.body?.string() ?: ""
-                    if (bodyString.isNotBlank()) {
-                        val json = JSONObject(bodyString)
-                        val latestCode = json.optInt("versionCode", json.optInt("latestVersionCode", currentCode))
-                        val latestName = json.optString("versionName", json.optString("latestVersionName", currentName))
-                        val releaseNotes = json.optString("releaseNotes", json.optString("changelog", "New improvements and fixes."))
-                        val downloadUrl = json.optString("downloadUrl", json.optString("apkUrl", ""))
-                        val isMandatory = json.optBoolean("mandatory", false)
+        for (url in urlsToTry) {
+            try {
+                val request = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "TakaManager-App/${currentName}")
+                    .header("Cache-Control", "no-cache")
+                    .build()
 
-                        val hasUpdate = latestCode > currentCode
+                httpClient.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val bodyString = response.body?.string() ?: ""
+                        if (bodyString.isNotBlank()) {
+                            val json = JSONObject(bodyString)
+                            val latestCode = json.optInt("versionCode", json.optInt("latestVersionCode", currentCode))
+                            val latestName = json.optString("versionName", json.optString("latestVersionName", currentName))
+                            val releaseNotes = json.optString("releaseNotes", json.optString("changelog", "New improvements and fixes."))
+                            val downloadUrl = json.optString("downloadUrl", json.optString("apkUrl", ""))
+                            val isMandatory = json.optBoolean("mandatory", false)
 
-                        return@withContext AppUpdateInfo(
-                            hasUpdate = hasUpdate,
-                            latestVersionCode = latestCode,
-                            latestVersionName = latestName,
-                            currentVersionCode = currentCode,
-                            currentVersionName = currentName,
-                            releaseNotes = releaseNotes,
-                            downloadUrl = downloadUrl,
-                            isMandatory = isMandatory
-                        )
+                            val hasUpdate = latestCode > currentCode
+
+                            return@withContext AppUpdateInfo(
+                                hasUpdate = hasUpdate,
+                                latestVersionCode = latestCode,
+                                latestVersionName = latestName,
+                                currentVersionCode = currentCode,
+                                currentVersionName = currentName,
+                                releaseNotes = releaseNotes,
+                                downloadUrl = downloadUrl,
+                                isMandatory = isMandatory
+                            )
+                        }
+                    } else {
+                        lastErrorMessage = "HTTP ${response.code}"
                     }
                 }
+            } catch (e: Exception) {
+                lastErrorMessage = e.localizedMessage ?: "Connection failed"
             }
-        } catch (e: Exception) {
-            // If offline or custom URL not reachable, return no update or fallback info
         }
 
-        // Return current version status
+        // Return current version status (no update available or offline)
         return@withContext AppUpdateInfo(
             hasUpdate = false,
             latestVersionCode = currentCode,
             latestVersionName = currentName,
             currentVersionCode = currentCode,
             currentVersionName = currentName,
-            releaseNotes = "You are already using the latest version.",
+            releaseNotes = if (lastErrorMessage != null) "Could not connect to update server ($lastErrorMessage)" else "You are already using the latest version.",
             downloadUrl = ""
         )
     }
