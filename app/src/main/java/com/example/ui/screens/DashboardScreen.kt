@@ -86,18 +86,26 @@ fun DashboardScreen(
 ) {
     val isBn = uiState.language == AppLanguage.BENGALI
 
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .testTag("dashboard_screen"),
-        contentPadding = PaddingValues(bottom = 96.dp)
+            .background(MaterialTheme.colorScheme.background)
+            .testTag("dashboard_screen")
     ) {
-        // Top Bar
-        item {
+        // Sticky Top Header Surface with Rounded Bottom Corners & Elevation
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 6.dp,
+            tonalElevation = 3.dp,
+            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -196,6 +204,13 @@ fun DashboardScreen(
                 }
             }
         }
+
+        // Scrollable Dashboard Content
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 96.dp)
+        ) {
 
         // Hero Financial Overview Card
         item {
@@ -630,6 +645,7 @@ fun DashboardScreen(
                 )
             }
         }
+    }
     }
 }
 
