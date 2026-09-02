@@ -1,0 +1,7 @@
+{
+  "versionCode": 1,
+  "versionName": "1.0.0",
+  "releaseNotes": "Initial release with offline persistence, multi-wallet accounts, budgets, debts tracking, and Bengali/English localization.",
+  "downloadUrl": "https://ais-pre-xwpblv3nlhgu25x3ryjovx-780898328560.asia-southeast1.run.app",
+  "mandatory": false
+}

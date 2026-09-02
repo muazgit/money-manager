@@ -1,0 +1,7 @@
+{
+  "name": "Taka Manager",
+  "description": "A comprehensive Bengali money manager and Hisab Khata app for tracking income, expenses, accounts (Cash, bKash, Nagad, Bank), debts (দেনা-পাওনা), budgets, and financial analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
