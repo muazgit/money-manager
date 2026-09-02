@@ -132,22 +132,13 @@ fun BengaliMoneyManagerApp(
             .fillMaxSize()
             .statusBarsPadding(),
         bottomBar = {
-            Surface(
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 12.dp,
-                tonalElevation = 4.dp,
+            NavigationBar(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .testTag("bottom_nav_bar")
+                    .windowInsetsPadding(WindowInsets.navigationBars),
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 4.dp
             ) {
-                NavigationBar(
-                    modifier = Modifier
-                        .testTag("bottom_nav_bar")
-                        .windowInsetsPadding(WindowInsets.navigationBars),
-                    containerColor = Color.Transparent,
-                    tonalElevation = 0.dp
-                ) {
                 val navItems = listOf(
                     NavigationItemData(
                         tab = NavigationTab.DASHBOARD,
@@ -216,7 +207,6 @@ fun BengaliMoneyManagerApp(
                         modifier = Modifier.testTag(item.tag)
                     )
                 }
-            }
             }
         },
         floatingActionButton = {

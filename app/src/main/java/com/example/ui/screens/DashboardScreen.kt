@@ -92,20 +92,17 @@ fun DashboardScreen(
             .background(MaterialTheme.colorScheme.background)
             .testTag("dashboard_screen")
     ) {
-        // Sticky Top Header Surface with Rounded Bottom Corners & Elevation
+        // Sticky Top Header Surface with clean flat elevation
         Surface(
             color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 6.dp,
-            tonalElevation = 3.dp,
-            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+            shadowElevation = 3.dp,
+            tonalElevation = 2.dp,
+            modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -209,7 +206,7 @@ fun DashboardScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 96.dp)
+            contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp)
         ) {
 
         // Hero Financial Overview Card
