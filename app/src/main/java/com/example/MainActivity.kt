@@ -70,6 +70,7 @@ import com.example.ui.screens.AccountsScreen
 import com.example.ui.screens.AddAccountDialog
 import com.example.ui.screens.AddDebtDialog
 import com.example.ui.screens.AddTransactionBottomSheet
+import com.example.ui.screens.AiAdvisorBottomSheet
 import com.example.ui.screens.AnalyticsScreen
 import com.example.ui.screens.DenaPaonaScreen
 import com.example.ui.screens.DashboardScreen
@@ -114,6 +115,7 @@ fun BengaliMoneyManagerApp(
     var showAddDebtDialog by remember { mutableStateOf(false) }
     var showSetBudgetDialog by remember { mutableStateOf(false) }
     var showAddAccountDialog by remember { mutableStateOf(false) }
+    var showAiAdvisorSheet by remember { mutableStateOf(false) }
 
     // Handle back button: if not on Dashboard, navigate to Dashboard first
     BackHandler(enabled = uiState.selectedTab != NavigationTab.DASHBOARD) {
@@ -269,7 +271,8 @@ fun BengaliMoneyManagerApp(
                             onNavigateTab = { targetTab -> viewModel.setTab(targetTab) },
                             onToggleLanguage = { viewModel.toggleLanguage() },
                             onToggleBengaliDigits = { viewModel.toggleBengaliDigits() },
-                            onToggleTheme = { viewModel.toggleTheme() }
+                            onToggleTheme = { viewModel.toggleTheme() },
+                            onOpenAiAdvisor = { showAiAdvisorSheet = true }
                         )
                     }
 
@@ -393,6 +396,14 @@ fun BengaliMoneyManagerApp(
                 viewModel.addAccount(nameEn, nameBn, type, initialBal, accNum)
                 showAddAccountDialog = false
             }
+        )
+    }
+
+    // AI Financial Advisor Bottom Sheet
+    if (showAiAdvisorSheet) {
+        AiAdvisorBottomSheet(
+            uiState = uiState,
+            onDismiss = { showAiAdvisorSheet = false }
         )
     }
 

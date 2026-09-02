@@ -1,7 +1,7 @@
 {
-  "versionCode": 1,
-  "versionName": "1.0.0",
-  "releaseNotes": "Initial release with offline persistence, multi-wallet accounts, budgets, debts tracking, and Bengali/English localization.",
-  "downloadUrl": "https://ais-pre-xwpblv3nlhgu25x3ryjovx-780898328560.asia-southeast1.run.app",
+  "versionCode": 2,
+  "versionName": "1.1.0",
+  "releaseNotes": "✨ নতুন AI আর্থিক উপদেষ্টা (AI Financial Advisor) যুক্ত করা হয়েছে!\n• বাস্তব হিসাবের ভিত্তিতে স্মার্ট ব্যয়ের বিশ্লেষণ ও সঞ্চয় বৃদ্ধির কৌশল\n• উচ্চ ঝুঁকিপূর্ণ খরচের খাত চিহ্নিতকরণ ও দেনা পরিশোধের পরিকল্পনা\n• ইন-অ্যাপ আপডেটার ও পারফরম্যান্স উন্নয়ন",
+  "downloadUrl": "https://github.com/muazgit/money-manager/releases",
   "mandatory": false
 }
