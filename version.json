@@ -1,7 +1,7 @@
 {
-  "versionCode": 3,
-  "versionName": "1.2.0",
-  "releaseNotes": "🎨 নতুন ডিজাইন ও ইন্টারফেস আপডেট (v1.2.0):\n• স্টিকি টপ হেডার (Sticky Top Header)\n• আধুনিক কার্ভড টপ বটম বার (Curved Bottom Bar)\n• AI আর্থিক উপদেষ্টা ও পারফরম্যান্স উন্নয়ন",
-  "downloadUrl": "https://github.com/muazgit/money-manager/releases/download/v1.2.0/app-release.apk",
+  "versionCode": 4,
+  "versionName": "1.2.1",
+  "releaseNotes": "🎨 নতুন ডিজাইন ও ইন্টারফেস আপডেট (v1.2.1):\n• স্টিকি টপ হেডার (Sticky Top Header)\n• ব্যালেন্স কার্ডের স্পষ্ট স্পেসিং\n• ক্লিন ম্যাটেরিয়াল ৩ ইন্টারফেস ও পারফরম্যান্স উন্নয়ন",
+  "downloadUrl": "https://github.com/muazgit/money-manager/releases/download/v1.2.1/app-release.apk",
   "mandatory": false
 }
