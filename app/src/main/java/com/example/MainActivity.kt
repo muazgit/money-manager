@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val viewModel: MoneyViewModel = viewModel()
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-            MyApplicationTheme(darkTheme = uiState.isDarkMode) {
+            MyApplicationTheme(darkTheme = uiState.isDarkMode, language = uiState.language) {
                 BengaliMoneyManagerApp(viewModel = viewModel)
             }
         }
@@ -417,61 +417,217 @@ fun BengaliMoneyManagerApp(
     var dismissedUpdatePrompt by remember { mutableStateOf(false) }
     val update = uiState.updateInfo
     val context = androidx.compose.ui.platform.LocalContext.current
+    val downloadState by com.example.util.AppUpdateManager.downloadState.collectAsStateWithLifecycle()
 
     LaunchedEffect(update) {
         if (update?.hasUpdate == true) {
             dismissedUpdatePrompt = false
+            com.example.util.AppUpdateManager.resetDownloadState()
         }
     }
 
     if (update != null && update.hasUpdate && !dismissedUpdatePrompt) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { dismissedUpdatePrompt = true },
-            icon = {
-                androidx.compose.material3.Icon(
-                    imageVector = Icons.Default.SystemUpdate,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            },
-            title = {
-                androidx.compose.material3.Text(
-                    text = if (isBn) "নতুন আপডেট এসেছে! (v${update.latestVersionName})" else "New Update Available! (v${update.latestVersionName})",
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                )
-            },
-            text = {
-                androidx.compose.foundation.layout.Column {
-                    androidx.compose.material3.Text(
-                        text = if (isBn) "একটি নতুন আপডেট ডাউনলোড করার জন্য প্রস্তুত। নতুন যা যা যুক্ত হয়েছে:" else "A new version of Taka Manager is available with the following improvements:",
-                        fontSize = 13.sp
-                    )
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
-                    androidx.compose.material3.Text(
-                        text = update.releaseNotes.ifBlank { "Bug fixes and performance improvements." },
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            confirmButton = {
-                androidx.compose.material3.Button(
-                    onClick = {
-                        dismissedUpdatePrompt = true
-                        com.example.util.AppUpdateManager.openDownloadOrBrowser(context, update.downloadUrl)
+        when (val dState = downloadState) {
+            is com.example.util.UpdateDownloadState.Idle -> {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { dismissedUpdatePrompt = true },
+                    icon = {
+                        androidx.compose.material3.Icon(
+                            imageVector = Icons.Default.SystemUpdate,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    title = {
+                        androidx.compose.material3.Text(
+                            text = if (isBn) "নতুন আপডেট এসেছে! (v${update.latestVersionName})" else "New Update Available! (v${update.latestVersionName})",
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        androidx.compose.foundation.layout.Column {
+                            androidx.compose.material3.Text(
+                                text = if (isBn) "একটি নতুন আপডেট ডাউনলোড ও ইনস্টল করার জন্য প্রস্তুত। নতুন পরিবর্তনসমূহ:" else "A new version of Taka Manager is available with the following improvements:",
+                                fontSize = 13.sp
+                            )
+                            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
+                            androidx.compose.material3.Text(
+                                text = update.releaseNotes.ifBlank { "Bug fixes and performance improvements." },
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        androidx.compose.material3.Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    com.example.util.AppUpdateManager.startDownloadAndAutoInstall(context, update.downloadUrl)
+                                }
+                            }
+                        ) {
+                            androidx.compose.material3.Text(if (isBn) "এখনই আপডেট করুন" else "Update Now")
+                        }
+                    },
+                    dismissButton = {
+                        if (!update.isMandatory) {
+                            androidx.compose.material3.TextButton(onClick = { dismissedUpdatePrompt = true }) {
+                                androidx.compose.material3.Text(if (isBn) "পরে করব" else "Later")
+                            }
+                        }
                     }
-                ) {
-                    androidx.compose.material3.Text(if (isBn) "এখনই আপডেট করুন" else "Update Now")
-                }
-            },
-            dismissButton = {
-                if (!update.isMandatory) {
-                    androidx.compose.material3.TextButton(onClick = { dismissedUpdatePrompt = true }) {
-                        androidx.compose.material3.Text(if (isBn) "পরে করব" else "Later")
-                    }
-                }
+                )
             }
-        )
+            is com.example.util.UpdateDownloadState.Downloading -> {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { /* Keep visible during download */ },
+                    icon = {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.padding(bottom = 4.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 3.dp
+                        )
+                    },
+                    title = {
+                        androidx.compose.material3.Text(
+                            text = if (isBn) "আপডেট ডাউনলোড হচ্ছে..." else "Downloading Update...",
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        androidx.compose.foundation.layout.Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+                        ) {
+                            androidx.compose.material3.LinearProgressIndicator(
+                                progress = { dState.progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                            )
+                            androidx.compose.foundation.layout.Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                            ) {
+                                androidx.compose.material3.Text(
+                                    text = "${(dState.progress * 100).toInt()}%",
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                androidx.compose.material3.Text(
+                                    text = "${dState.downloadedMb} / ${dState.totalMb}",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            androidx.compose.material3.Text(
+                                text = if (isBn) "ডাউনলোড শেষ হলে স্বয়ংক্রিয়ভাবে ইনস্টলেশন শুরু হবে।" else "Installation will start automatically when download completes.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    confirmButton = {},
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                com.example.util.AppUpdateManager.resetDownloadState()
+                                dismissedUpdatePrompt = true
+                            }
+                        ) {
+                            androidx.compose.material3.Text(if (isBn) "বাতিল করুন" else "Cancel")
+                        }
+                    }
+                )
+            }
+            is com.example.util.UpdateDownloadState.ReadyToInstall -> {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = {
+                        dismissedUpdatePrompt = true
+                        com.example.util.AppUpdateManager.resetDownloadState()
+                    },
+                    icon = {
+                        androidx.compose.material3.Icon(
+                            imageVector = Icons.Default.SystemUpdate,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    title = {
+                        androidx.compose.material3.Text(
+                            text = if (isBn) "ইনস্টল করার জন্য প্রস্তুত!" else "Ready to Install!",
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        androidx.compose.material3.Text(
+                            text = if (isBn) "নতুন সংস্করণ ডাউনলোড সম্পন্ন হয়েছে। ইনস্টলেশন উইন্ডো চালু না হলে নিচের বাটনে ট্যাপ করুন।" else "Update downloaded. Tap the button below if installer didn't appear.",
+                            fontSize = 13.sp
+                        )
+                    },
+                    confirmButton = {
+                        androidx.compose.material3.Button(
+                            onClick = {
+                                com.example.util.AppUpdateManager.installApk(context, dState.apkFile)
+                            }
+                        ) {
+                            androidx.compose.material3.Text(if (isBn) "ইনস্টল সম্পন্ন করুন" else "Complete Install")
+                        }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                dismissedUpdatePrompt = true
+                                com.example.util.AppUpdateManager.resetDownloadState()
+                            }
+                        ) {
+                            androidx.compose.material3.Text(if (isBn) "বন্ধ করুন" else "Close")
+                        }
+                    }
+                )
+            }
+            is com.example.util.UpdateDownloadState.Error -> {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = {
+                        com.example.util.AppUpdateManager.resetDownloadState()
+                    },
+                    title = {
+                        androidx.compose.material3.Text(
+                            text = if (isBn) "ডাউনলোড সমস্যা" else "Download Failed",
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        androidx.compose.material3.Text(
+                            text = "${dState.message}\n\n" + if (isBn) "আপনি চাইলে সরাসরি ব্রাউজার দিয়ে নতুন ভার্সন ডাউনলোড করে নিতে পারেন।" else "You can also download directly from browser.",
+                            fontSize = 13.sp
+                        )
+                    },
+                    confirmButton = {
+                        androidx.compose.material3.Button(
+                            onClick = {
+                                com.example.util.AppUpdateManager.openBrowser(context, update.downloadUrl)
+                                com.example.util.AppUpdateManager.resetDownloadState()
+                                dismissedUpdatePrompt = true
+                            }
+                        ) {
+                            androidx.compose.material3.Text(if (isBn) "ব্রাউজারে খুলুন" else "Open in Browser")
+                        }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                com.example.util.AppUpdateManager.resetDownloadState()
+                            }
+                        ) {
+                            androidx.compose.material3.Text(if (isBn) "পুনরায় চেষ্টা" else "Retry")
+                        }
+                    }
+                )
+            }
+        }
     }
 }
 

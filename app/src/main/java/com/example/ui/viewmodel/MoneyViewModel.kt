@@ -284,22 +284,22 @@ class MoneyViewModel(application: Application) : AndroidViewModel(application) {
     fun simulateUpdateForTesting() {
         val simulated = com.example.util.AppUpdateInfo(
             hasUpdate = true,
-            latestVersionCode = 3,
-            latestVersionName = "1.2.0",
+            latestVersionCode = BuildConfig.VERSION_CODE + 1,
+            latestVersionName = "1.2.2",
             currentVersionCode = BuildConfig.VERSION_CODE,
             currentVersionName = BuildConfig.VERSION_NAME,
             releaseNotes = if (_uiState.value.language == AppLanguage.BENGALI)
-                "🎨 নতুন ডিজাইন ও ইন্টারফেস আপডেট (v1.2.0):\n• স্টিকি টপ হেডার (Sticky Header)\n• কার্ভড টপ বটম ন্যাভিগেশন বার (Curved Bottom Bar)\n• AI আর্থিক উপদেষ্টা ও পারফরম্যান্স উন্নয়ন"
+                "🚀 সম্পূর্ণ নতুন আপডেট (v1.2.2):\n• ইন্টার (Inter) ও কালপুরুষ (Kalpurush) ফন্ট সংযোজন\n• ওয়ান-ক্লিক ইন-অ্যাপ অটোমেটিক ডাউনলোড ও ইনস্টলেশন\n• প্যাকেজ কনফ্লিক্ট সমস্যা স্থায়ী সমাধান"
             else
-                "🎨 New UI Design & Enhancements (v1.2.0):\n• Sticky Elevated Top Header\n• Curved Top-Radiused Bottom Bar\n• AI Financial Advisor & Bug Fixes",
-            downloadUrl = "https://github.com/muazgit/money-manager/releases",
+                "🚀 New Update Release (v1.2.2):\n• Inter & Kalpurush fonts integration\n• 1-Click seamless in-app auto download and install\n• Permanent fix for package conflict and signature issues",
+            downloadUrl = "https://github.com/muazgit/money-manager/releases/download/v1.2.2/app-release.apk",
             isMandatory = false
         )
         _uiState.update {
             it.copy(
                 isCheckingUpdate = false,
                 updateInfo = simulated,
-                updateCheckMessage = if (it.language == AppLanguage.BENGALI) "টেস্ট আপডেট সক্রিয়: v1.2.0" else "Test update active: v1.2.0"
+                updateCheckMessage = if (it.language == AppLanguage.BENGALI) "টেস্ট আপডেট সক্রিয়: v1.2.2" else "Test update active: v1.2.2"
             )
         }
     }

@@ -4,15 +4,30 @@ import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
+import android.provider.Settings
 import android.widget.Toast
+import androidx.core.content.FileProvider
 import com.example.BuildConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
+
+sealed class UpdateDownloadState {
+    object Idle : UpdateDownloadState()
+    data class Downloading(val progress: Float, val downloadedMb: String, val totalMb: String) : UpdateDownloadState()
+    data class ReadyToInstall(val apkFile: File) : UpdateDownloadState()
+    data class Error(val message: String) : UpdateDownloadState()
+}
 
 data class AppUpdateInfo(
     val hasUpdate: Boolean,
@@ -36,9 +51,16 @@ object AppUpdateManager {
     private const val FALLBACK_UPDATE_CONFIG_URL = "https://raw.githubusercontent.com/abufiras985/taka-manager/main/version.json"
 
     private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
         .build()
+
+    private val _downloadState = MutableStateFlow<UpdateDownloadState>(UpdateDownloadState.Idle)
+    val downloadState: StateFlow<UpdateDownloadState> = _downloadState.asStateFlow()
+
+    fun resetDownloadState() {
+        _downloadState.value = UpdateDownloadState.Idle
+    }
 
     fun getUpdateUrl(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -46,13 +68,6 @@ object AppUpdateManager {
         return if (saved.isNotEmpty()) saved else DEFAULT_UPDATE_CONFIG_URL
     }
 
-    /**
-     * Normalizes user-input GitHub URLs to raw.githubusercontent.com format if needed.
-     * E.g. https://github.com/muazgit/money-manager/blob/main/version.json
-     *   -> https://raw.githubusercontent.com/muazgit/money-manager/main/version.json
-     * Or https://github.com/muazgit/money-manager
-     *   -> https://raw.githubusercontent.com/muazgit/money-manager/main/version.json
-     */
     fun normalizeUrl(rawUrl: String): String {
         var url = rawUrl.trim()
         if (url.isEmpty()) return DEFAULT_UPDATE_CONFIG_URL
@@ -131,7 +146,6 @@ object AppUpdateManager {
             }
         }
 
-        // Return current version status (no update available or offline)
         return@withContext AppUpdateInfo(
             hasUpdate = false,
             latestVersionCode = currentCode,
@@ -143,55 +157,155 @@ object AppUpdateManager {
         )
     }
 
+    /**
+     * Downloads the APK file directly with real-time progress and launches package installer upon completion.
+     */
+    suspend fun startDownloadAndAutoInstall(context: Context, downloadUrl: String) = withContext(Dispatchers.IO) {
+        if (downloadUrl.isBlank()) {
+            _downloadState.value = UpdateDownloadState.Error("No download link provided")
+            return@withContext
+        }
+
+        // If URL doesn't look like an APK directly, open in browser as fallback
+        if (!downloadUrl.endsWith(".apk", ignoreCase = true)) {
+            withContext(Dispatchers.Main) {
+                openBrowser(context, downloadUrl)
+            }
+            return@withContext
+        }
+
+        try {
+            _downloadState.value = UpdateDownloadState.Downloading(0f, "0.0 MB", "...")
+
+            val request = Request.Builder()
+                .url(downloadUrl)
+                .header("User-Agent", "TakaManager-App/${BuildConfig.VERSION_NAME}")
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    _downloadState.value = UpdateDownloadState.Error("ডাউনলোড ব্যর্থ হয়েছে (HTTP ${response.code})")
+                    return@use
+                }
+
+                val body = response.body
+                if (body == null) {
+                    _downloadState.value = UpdateDownloadState.Error("সার্ভার থেকে কোনো ফাইল পাওয়া যায়নি")
+                    return@use
+                }
+
+                val contentLength = body.contentLength()
+                val totalMbStr = if (contentLength > 0) String.format("%.1f MB", contentLength / (1024.0 * 1024.0)) else "Unknown size"
+
+                // Destination update file in app cache
+                val updateDir = File(context.cacheDir, "updates")
+                if (!updateDir.exists()) {
+                    updateDir.mkdirs()
+                }
+                val outputFile = File(updateDir, "taka_manager_update.apk")
+                if (outputFile.exists()) {
+                    outputFile.delete()
+                }
+
+                var totalBytesRead: Long = 0
+                val buffer = ByteArray(8 * 1024)
+                body.byteStream().use { input ->
+                    FileOutputStream(outputFile).use { output ->
+                        var bytesRead: Int
+                        var lastProgressReport = 0f
+
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                            totalBytesRead += bytesRead
+
+                            if (contentLength > 0) {
+                                val progress = (totalBytesRead.toFloat() / contentLength).coerceIn(0f, 1f)
+                                if (progress - lastProgressReport >= 0.02f || progress >= 1f) {
+                                    lastProgressReport = progress
+                                    val downloadedMbStr = String.format("%.1f MB", totalBytesRead / (1024.0 * 1024.0))
+                                    _downloadState.value = UpdateDownloadState.Downloading(progress, downloadedMbStr, totalMbStr)
+                                }
+                            }
+                        }
+                        output.flush()
+                    }
+                }
+
+                _downloadState.value = UpdateDownloadState.ReadyToInstall(outputFile)
+
+                // Automatically prompt installation immediately on main thread!
+                withContext(Dispatchers.Main) {
+                    installApk(context, outputFile)
+                }
+            }
+        } catch (e: Exception) {
+            _downloadState.value = UpdateDownloadState.Error("ডাউনলোড ব্যর্থ হয়েছে: ${e.localizedMessage ?: "Unknown error"}")
+        }
+    }
+
+    /**
+     * Prompts the Android Package Installer with the downloaded APK.
+     */
+    fun installApk(context: Context, apkFile: File) {
+        try {
+            if (!apkFile.exists()) {
+                Toast.makeText(context, "APK ফাইল পাওয়া যায়নি", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            // On Android 8.0+ (Oreo+), verify if app can request package installations
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (!context.packageManager.canRequestPackageInstalls()) {
+                    Toast.makeText(
+                        context,
+                        "আপডেট সম্পূর্ণ করতে অনুমতি দিন",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    val manageIntent = Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:${context.packageName}")
+                    ).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(manageIntent)
+                    return
+                }
+            }
+
+            val apkUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                apkFile
+            )
+
+            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(apkUri, "application/vnd.android.package-archive")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+            }
+
+            context.startActivity(installIntent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "ইনস্টল শুরু করা যায়নি: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+        }
+    }
+
     fun openDownloadOrBrowser(context: Context, downloadUrl: String) {
         if (downloadUrl.isBlank()) {
             Toast.makeText(context, "No download link provided", Toast.LENGTH_SHORT).show()
             return
         }
+        openBrowser(context, downloadUrl)
+    }
 
+    fun openBrowser(context: Context, url: String) {
         try {
-            if (downloadUrl.endsWith(".apk", ignoreCase = true)) {
-                // Download using Android DownloadManager
-                val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
-                    setTitle("Taka Manager Update")
-                    setDescription("Downloading latest update APK...")
-                    setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                    setDestinationInExternalPublicDir(
-                        Environment.DIRECTORY_DOWNLOADS,
-                        "taka-manager-v${System.currentTimeMillis()}.apk"
-                    )
-                    setAllowedOverMetered(true)
-                    setAllowedOverRoaming(true)
-                }
-
-                val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
-                if (dm != null) {
-                    dm.enqueue(request)
-                    Toast.makeText(context, "ডাউনলোড শুরু হয়েছে (Notification চেক করুন)...", Toast.LENGTH_LONG).show()
-                } else {
-                    // Fallback to browser if DownloadManager is unavailable
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    }
-                    context.startActivity(intent)
-                }
-            } else {
-                // Open in web browser
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                context.startActivity(intent)
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
+            context.startActivity(intent)
         } catch (e: Exception) {
-            // Fallback to generic browser intent
-            try {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                context.startActivity(intent)
-            } catch (err: Exception) {
-                Toast.makeText(context, "Unable to open download URL: ${err.localizedMessage}", Toast.LENGTH_SHORT).show()
-            }
+            Toast.makeText(context, "Unable to open link: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
         }
     }
 }
+

@@ -730,7 +730,7 @@ fun AccountsScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (isBn) "🧪 আপডেট ডায়ালগ টেস্ট করুন (v1.2.0)" else "🧪 Test Update Popup (v1.2.0)",
+                            text = if (isBn) "🧪 আপডেট ডায়ালগ টেস্ট করুন (v1.2.2)" else "🧪 Test Update Popup (v1.2.2)",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1027,8 +1027,9 @@ fun AccountsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        update?.downloadUrl?.let { url ->
-                            AppUpdateManager.openDownloadOrBrowser(context, url)
+                        val dlUrl = update?.downloadUrl ?: ""
+                        if (dlUrl.isNotBlank()) {
+                            AppUpdateManager.openDownloadOrBrowser(context, dlUrl)
                         }
                         showUpdateDetailsDialog = false
                     }
